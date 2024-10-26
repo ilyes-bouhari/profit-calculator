@@ -20,19 +20,11 @@ def init_outdir():
 
 
 def optimize_soldes_file(uploaded_file):
-    df = pl.read_csv(
-        uploaded_file,
-        schema_overrides={
-            "date": pl.Date,
-            "id": pl.Int64
-        },
-        ignore_errors=True
-    )
-    df = df.with_columns(df["solde"].str.replace_all(",", "").cast(pl.Float64))
-    df = df.drop_nulls()
+    df = pd.read_excel(uploaded_file, parse_dates=["date"])
 
+    df = pl.from_pandas(df)
+    
     df.write_parquet("./data/soldes.parquet")
-    df = pl.read_parquet("./data/soldes.parquet")
 
     return df
 
@@ -94,7 +86,7 @@ def generate_clients_daily_profit(clients, start_date, end_date):
                     )
                 )
 
-    df.write_csv("./data/clients_daily_profit.csv")
+    # df.write_csv("./data/clients_daily_profit.csv")
     df.write_parquet("./data/clients_daily_profit.parquet")
 
     return df
@@ -123,7 +115,7 @@ def calculate_clients_daily_percentage(clients_daily_profit, clients, start_date
                         .otherwise("percentage")
                     )
 
-    clients_daily_profit.write_csv("./data/clients_daily_profit.csv")
+    # clients_daily_profit.write_csv("./data/clients_daily_profit.csv")
     clients_daily_profit.write_parquet("./data/clients_daily_profit.parquet")
 
     return clients_daily_profit
@@ -158,7 +150,7 @@ def calculate_daily_profit(clients_daily_profit, start_date, end_date):
             )
         )
 
-    daily_profit.write_csv("./data/daily_profit.csv")
+    # daily_profit.write_csv("./data/daily_profit.csv")
     daily_profit.write_parquet("./data/daily_profit.parquet")
 
     return daily_profit
@@ -173,7 +165,7 @@ def calculate_clients_daily_profit(daily_profit, clients_daily_profit):
             .otherwise("profit")
         )
 
-    clients_daily_profit.write_csv("./data/clients_daily_profit.csv")
+    # clients_daily_profit.write_csv("./data/clients_daily_profit.csv")
     clients_daily_profit.write_parquet("./data/clients_daily_profit.parquet")
 
     return clients_daily_profit
@@ -198,7 +190,7 @@ def calculate_clients_profit(clients_daily_profit, clients):
             )
         )
 
-    clients_profit.write_csv("./data/clients_profit.csv")
+    # clients_profit.write_csv("./data/clients_profit.csv")
     clients_profit.write_parquet("./data/clients_profit.parquet")
 
     return clients_profit
@@ -221,7 +213,7 @@ if (
 
 with st.container():
     uploaded_file = st.file_uploader(
-        "Télécharger le fichier", type=['csv'])
+        "Télécharger le fichier", type=["xlsx"])
 
     dates = st.date_input(
         label="Sélectionner les dates de début et de fin",
@@ -274,13 +266,11 @@ with st.container():
                 status.update(label="Calculer les bénéfices des clients...")
                 clients_profit = calculate_clients_profit(clients_daily_profit, clients)
 
-                # st.dataframe(clients_profit)
-
                 status.update(label="Terminer!", state="complete")
     
         st.download_button(
             label="Télécharger 💾",
-            data=pd.read_csv("./data/clients_profit.csv").to_csv(index=None),
+            data=pd.read_parquet("./data/clients_profit.parquet").to_csv(index=None),
             file_name="profit.csv",
             mime="text/csv",
         )
