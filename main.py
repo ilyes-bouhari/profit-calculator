@@ -1,5 +1,6 @@
 import os
 import datetime
+from io import BytesIO
 from datetime import timedelta
 import polars as pl
 import streamlit as st
@@ -23,7 +24,7 @@ def optimize_soldes_file(uploaded_file):
     df = pd.read_excel(uploaded_file, parse_dates=["date"])
 
     df = pl.from_pandas(df)
-    
+
     df.write_parquet("./data/soldes.parquet")
 
     return df
@@ -86,7 +87,6 @@ def generate_clients_daily_profit(clients, start_date, end_date):
                     )
                 )
 
-    # df.write_csv("./data/clients_daily_profit.csv")
     df.write_parquet("./data/clients_daily_profit.parquet")
 
     return df
@@ -115,7 +115,6 @@ def calculate_clients_daily_percentage(clients_daily_profit, clients, start_date
                         .otherwise("percentage")
                     )
 
-    # clients_daily_profit.write_csv("./data/clients_daily_profit.csv")
     clients_daily_profit.write_parquet("./data/clients_daily_profit.parquet")
 
     return clients_daily_profit
@@ -150,7 +149,6 @@ def calculate_daily_profit(clients_daily_profit, start_date, end_date):
             )
         )
 
-    # daily_profit.write_csv("./data/daily_profit.csv")
     daily_profit.write_parquet("./data/daily_profit.parquet")
 
     return daily_profit
@@ -158,14 +156,13 @@ def calculate_daily_profit(clients_daily_profit, start_date, end_date):
 
 def calculate_clients_daily_profit(daily_profit, clients_daily_profit):
     for row in clients_daily_profit.iter_rows(named=True):
-        per_day_profit = daily_profit.filter(date=row["date"])[0]["profit"][0]    
+        per_day_profit = daily_profit.filter(date=row["date"])[0]["profit"][0]
         clients_daily_profit = clients_daily_profit.with_columns(
             profit=pl.when(id=row["id"], date=row["date"])
             .then(row["percentage"] * per_day_profit / 100)
             .otherwise("profit")
         )
 
-    # clients_daily_profit.write_csv("./data/clients_daily_profit.csv")
     clients_daily_profit.write_parquet("./data/clients_daily_profit.parquet")
 
     return clients_daily_profit
@@ -190,14 +187,18 @@ def calculate_clients_profit(clients_daily_profit, clients):
             )
         )
 
-    # clients_profit.write_csv("./data/clients_profit.csv")
     clients_profit.write_parquet("./data/clients_profit.parquet")
 
     return clients_profit
 
 
-def download_profit(df: pl.DataFrame):
-    return df.to_pandas().to_csv()
+@st.cache_data
+def convert_df_to_excel(df):
+    output = BytesIO()
+    with pd.ExcelWriter(output) as writer:
+        df.to_excel(writer, index=False)
+    processed_data = output.getvalue()
+    return processed_data
 
 
 if (
@@ -247,7 +248,8 @@ with st.container():
                 status.update(label="Extraire les identifiants des clients...")
                 clients = get_clients_ids(df)
 
-                status.update(label="Initier les soldes quotidiennes des clients...")
+                status.update(
+                    label="Initier les soldes quotidiennes des clients...")
                 clients_daily_profit = generate_clients_daily_profit(
                     clients, start_date, end_date)
 
@@ -260,17 +262,21 @@ with st.container():
                 daily_profit = calculate_daily_profit(
                     clients_daily_profit, start_date, end_date)
 
-                status.update(label="Calculer le bénéfice quotidien des clients...")
-                clients_daily_profit = calculate_clients_daily_profit(daily_profit, clients_daily_profit)
+                status.update(
+                    label="Calculer le bénéfice quotidien des clients...")
+                clients_daily_profit = calculate_clients_daily_profit(
+                    daily_profit, clients_daily_profit)
 
                 status.update(label="Calculer les bénéfices des clients...")
-                clients_profit = calculate_clients_profit(clients_daily_profit, clients)
+                clients_profit = calculate_clients_profit(
+                    clients_daily_profit, clients)
 
                 status.update(label="Terminer!", state="complete")
-    
+
         st.download_button(
             label="Télécharger 💾",
-            data=pd.read_parquet("./data/clients_profit.parquet").to_csv(index=None),
-            file_name="profit.csv",
-            mime="text/csv",
+            data=convert_df_to_excel(pd.read_parquet(
+                "./data/clients_profit.parquet")),
+            file_name="profit.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
