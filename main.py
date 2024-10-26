@@ -221,7 +221,7 @@ if (
 
 with st.container():
     uploaded_file = st.file_uploader(
-        "Upload your CSV or Excel file", type=['csv', 'xlsx'])
+        "Upload your CSV or Excel file", type=['csv'])
 
     dates = st.date_input(
         label="Select start and end dates",
