@@ -5,7 +5,7 @@ import polars as pl
 import streamlit as st
 import pandas as pd
 
-st.title('Profit Calculator 💰')
+st.title("Calculateur de bénéfices 💰")
 
 
 def daterange(start_date, end_date):
@@ -221,17 +221,17 @@ if (
 
 with st.container():
     uploaded_file = st.file_uploader(
-        "Upload your CSV or Excel file", type=['csv'])
+        "Télécharger le fichier", type=['csv'])
 
     dates = st.date_input(
-        label="Select start and end dates",
+        label="Sélectionner les dates de début et de fin",
         value=(),
         min_value=datetime.date(2010, 1, 1),
         max_value=datetime.date(2050, 1, 1),
         format="DD/MM/YYYY",
     )
 
-    profit = st.number_input("Profit")
+    profit = st.number_input("Profit global")
 
     if len(dates) == 2 and uploaded_file and profit:
         if (
@@ -239,47 +239,47 @@ with st.container():
             st.session_state.last_selected_dates != dates or
             st.session_state.last_profit != profit
         ):
-            with st.status("Running the calculator ⏳", expanded=True) as status:
+            with st.status("En cours d'exécution... ⏳", expanded=True) as status:
                 st.session_state.last_uploaded_file = uploaded_file
                 st.session_state.last_selected_dates = dates
                 st.session_state.last_profit = profit
 
                 start_date, end_date = dates
 
-                status.update(label="Initiate data folder...")
+                status.update(label="Initier le dossier de données...")
                 init_outdir()
 
-                status.update(label="Optimizing soldes...")
+                status.update(label="Optimisation des soldes...")
                 df = optimize_soldes_file(uploaded_file)
 
-                status.update(label="Extract clients ids...")
+                status.update(label="Extraire les identifiants des clients...")
                 clients = get_clients_ids(df)
 
-                status.update(label="Initiate clients daily soldes...")
+                status.update(label="Initier les soldes quotidiennes des clients...")
                 clients_daily_profit = generate_clients_daily_profit(
                     clients, start_date, end_date)
 
                 status.update(
-                    label="Calculate clients daily percentage...")
+                    label="Calculer le pourcentage quotidien des clients...")
                 clients_daily_profit = calculate_clients_daily_percentage(
                     clients_daily_profit, clients, start_date, end_date)
 
-                status.update(label="Calculate daily profit...")
+                status.update(label="Calculer le bénéfice quotidien...")
                 daily_profit = calculate_daily_profit(
                     clients_daily_profit, start_date, end_date)
 
-                status.update(label="Calculate clients daily profit...")
+                status.update(label="Calculer le bénéfice quotidien des clients...")
                 clients_daily_profit = calculate_clients_daily_profit(daily_profit, clients_daily_profit)
 
-                status.update(label="Calculate clients profit...")
+                status.update(label="Calculer les bénéfices des clients...")
                 clients_profit = calculate_clients_profit(clients_daily_profit, clients)
 
                 # st.dataframe(clients_profit)
 
-                status.update(label="Complete!", state="complete")
+                status.update(label="Terminer!", state="complete")
     
         st.download_button(
-            label="Download 💾",
+            label="Télécharger 💾",
             data=pd.read_csv("./data/clients_profit.csv").to_csv(index=None),
             file_name="profit.csv",
             mime="text/csv",
